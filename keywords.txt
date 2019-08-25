@@ -1,0 +1,22 @@
+#######################################
+# Syntax Coloring Map For PICxel
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+PICxelPlus	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+refreshLEDs	KEYWORD2
+GRBsetLEDColor	KEYWORD2
+HSVsetLEDColor	KEYWORD2
+clear	KEYWORD2
+HSVToColor	KEYWORD2
+getNumberOfLEDs	KEYWORD2
+
