@@ -444,6 +444,10 @@ template <uint32_t S> class PICxelPlus {
             }
             return 0;
         }
+
+        uint8_t *getColorArray() {
+            return _colorArray;
+        }
         
 };
 #endif // PICxelPlus_H
