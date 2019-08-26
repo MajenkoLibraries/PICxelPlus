@@ -68,6 +68,8 @@ template <uint32_t S> class PICxelPlus {
         };
 
         uint8_t     _colorArray[S * 3];
+        uint8_t     _perLedBrightness[S];
+        uint8_t     _globalBrightness;
 
         // The coherent attribute here seems to be being ignored. So a horrible fudge to make
         // a pointer to the data array and AND it with 0xA0000000 to push it into KSEG1.  It's
@@ -93,6 +95,11 @@ template <uint32_t S> class PICxelPlus {
             return o;
         }
 
+        inline static uint8_t scaleBrightness(uint8_t color, uint8_t brightness) {
+            uint32_t bcol = color * brightness / 255;
+            return (uint8_t)bcol & 0xFF;
+        }
+
     public:
         PICxelPlus(DSPI &spi) : _spi(&spi) {}
         PICxelPlus(DSPI *spi) : _spi(spi) {}
@@ -102,6 +109,9 @@ template <uint32_t S> class PICxelPlus {
             _spi->begin();
             _spi->setSpeed(2500000);
             _spiRegisters = ((DSPIExtension *)_spi)->getSPIRegisters();
+
+            memset(_perLedBrightness, 255, S);
+            _globalBrightness = 255;
 
             _dataArrayNoCache = (uint8_t *)(0xA0000000 | (uint32_t)_dataArray);
 
@@ -274,6 +284,19 @@ template <uint32_t S> class PICxelPlus {
                 uint8_t g = _colorArray[i * 3 + 0];
                 uint8_t r = _colorArray[i * 3 + 1];
                 uint8_t b = _colorArray[i * 3 + 2];
+
+                if (_globalBrightness != 255) {
+                    g = scaleBrightness(g, _globalBrightness);
+                    r = scaleBrightness(r, _globalBrightness);
+                    b = scaleBrightness(b, _globalBrightness);
+                }
+
+                if (_perLedBrightness[i] != 255) {
+                    g = scaleBrightness(g, _perLedBrightness[i]);
+                    r = scaleBrightness(r, _perLedBrightness[i]);
+                    b = scaleBrightness(b, _perLedBrightness[i]);
+                }
+
                 uint32_t gblock = colourToCode(g);
                 _dataArrayNoCache[i * 9 + 0 + 50] = gblock >> 16;
                 _dataArrayNoCache[i * 9 + 1 + 50] = gblock >> 8;
@@ -301,6 +324,7 @@ template <uint32_t S> class PICxelPlus {
 #endif // __HAS_DMA__
             _spi->transfer(S * 9 + 50, _dataArray);
         }
+
 
         void GRBsetLEDColor(uint16_t pixelNumber, uint8_t green, uint8_t red, uint8_t blue) {
             if (pixelNumber < S) {
@@ -399,5 +423,27 @@ template <uint32_t S> class PICxelPlus {
         uint32_t getNumberOfLEDs() { 
             return S;
         }
+
+        void setBrightness(uint8_t brightness) {
+            _globalBrightness = brightness;
+        }
+
+        uint8_t getBrightness() {
+            return _globalBrightness;
+        }
+
+        void setPixelBrightness(uint32_t pixelNumber, uint8_t brightness) {
+            if (pixelNumber < S) {
+                _perLedBrightness[pixelNumber] = brightness;
+            }
+        }
+
+        uint8_t getPixelBrightness(uint32_t pixelNumber) {
+            if (pixelNumber < S) {
+                return _perLedBrightness[pixelNumber];
+            }
+            return 0;
+        }
+        
 };
 #endif // PICxelPlus_H
