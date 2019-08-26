@@ -71,6 +71,8 @@ template <uint32_t S> class PICxelPlus {
         uint8_t     _perLedBrightness[S];
         uint8_t     _globalBrightness;
 
+        bool        _needRefresh;
+
         // The coherent attribute here seems to be being ignored. So a horrible fudge to make
         // a pointer to the data array and AND it with 0xA0000000 to push it into KSEG1.  It's
         // REALLY nasty - but it works.
@@ -101,13 +103,13 @@ template <uint32_t S> class PICxelPlus {
         }
 
     public:
-        PICxelPlus(DSPI &spi) : _spi(&spi) {}
-        PICxelPlus(DSPI *spi) : _spi(spi) {}
+        PICxelPlus(DSPI &spi) : _spi(&spi), _needRefresh(false) {}
+        PICxelPlus(DSPI *spi) : _spi(spi), _needRefresh(false) {}
         ~PICxelPlus() {}
 
         void begin() {
             _spi->begin();
-            _spi->setSpeed(2500000);
+            _spi->setSpeed(2300000);
             _spiRegisters = ((DSPIExtension *)_spi)->getSPIRegisters();
 
             memset(_perLedBrightness, 255, S);
@@ -261,7 +263,10 @@ template <uint32_t S> class PICxelPlus {
 #endif
                 
             if (_dma != NULL) {
+                _spiRegisters->spiCon.ON = 0;
                 _spiRegisters->spiCon.STXISEL = 0b11;
+                _spiRegisters->spiCon.ENHBUF = 1;
+                _spiRegisters->spiCon.ON = 1;
                 _dma->sxSsa.reg = ((uint32_t)_dataArrayNoCache) & 0x1FFFFFFF; 
                 _dma->sxDsa.reg = ((uint32_t)&(_spiRegisters->sxBuf)) & 0x1FFFFFFF;
                 _dma->sxSsiz.reg = S * 9 + 50;
@@ -271,6 +276,7 @@ template <uint32_t S> class PICxelPlus {
                 _dma->dchEcon.CHSIRQ = _spiVector;
                 _dma->dchCon.CHAEN = 0;
                 _dma->dchCon.CHEN = 1;
+                _dma->dchCon.CHPRI = 3;
                 DMACONbits.ON = 1;
             }
 #endif // __HAS_DMA__
@@ -278,6 +284,7 @@ template <uint32_t S> class PICxelPlus {
         }
 
         void refreshLEDs() {
+            _needRefresh = false;
             memset(_dataArrayNoCache, 0, S * 9 + 50);
             uint32_t ptr = 0;
             for (int i = 0; i < S; i++) {
@@ -328,6 +335,7 @@ template <uint32_t S> class PICxelPlus {
 
         void GRBsetLEDColor(uint16_t pixelNumber, uint8_t green, uint8_t red, uint8_t blue) {
             if (pixelNumber < S) {
+                _needRefresh = true;
                 _colorArray[pixelNumber * 3 + 0] = green;
                 _colorArray[pixelNumber * 3 + 1] = red;
                 _colorArray[pixelNumber * 3 + 2] = blue;
@@ -336,6 +344,7 @@ template <uint32_t S> class PICxelPlus {
 
         void GRBsetLEDColor(uint16_t pixelNumber, uint32_t color) {
             if (pixelNumber < S) {
+                _needRefresh = true;
                 _colorArray[pixelNumber * 3 + 0] = color >> 8;
                 _colorArray[pixelNumber * 3 + 1] = color >> 16;
                 _colorArray[pixelNumber * 3 + 2] = color >> 0;
@@ -353,11 +362,13 @@ template <uint32_t S> class PICxelPlus {
         }
 
         void clear() {
+            _needRefresh = true;
             memset(_colorArray, 0, S * 3);
         }
 
         void clear(uint8_t pixelNumber) {
             if (pixelNumber < S) {
+                _needRefresh = true;
                 _colorArray[pixelNumber * 3 + 0] = 0;
                 _colorArray[pixelNumber * 3 + 1] = 0;
                 _colorArray[pixelNumber * 3 + 2] = 0;
@@ -447,6 +458,10 @@ template <uint32_t S> class PICxelPlus {
 
         uint8_t *getColorArray() {
             return _colorArray;
+        }
+
+        bool needRefresh() {
+            return _needRefresh;
         }
         
 };

@@ -1,0 +1,19 @@
+{
+    "name": "PICxelPlus",
+    "provides": "PICxelPlus.h",
+    "license": "LICENSE.md",
+    "readme": "README.md",
+    "description": "SPI and DMA version of PICxel",
+    "category": "Display",
+    "subcategory": "LED",
+    "maintainer": "Matt Jenkins <matt@majenko.co.uk>",
+    "version": "1.0.0",
+    "family": "pic32",
+    "core": "chipkit",
+    "install": {
+        "PICxelPlus.cpp": "/",
+        "PICxelPlus.h": "/",
+        "keywords.txt": "/",
+        "examples": "/"
+    }
+}
